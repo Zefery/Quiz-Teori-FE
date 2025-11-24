@@ -1,11 +1,30 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
+import path from 'path';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Menambahkan properti cachedPrisma ke global scope agar tidak error di TypeScript
+declare global {
+  // eslint-disable-next-line no-var
+  var cachedPrisma: PrismaClient | undefined;
+}
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+let prisma: PrismaClient;
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV === 'production') {
+  // memaksa Prisma menggunakan path absolut ke file dev.db
+  const filePath = path.join(process.cwd(), 'prisma/dev.db');
+  
+  prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: 'file:' + filePath,
+      },
+    },
+  });
+} else {
+  if (!global.cachedPrisma) {
+    global.cachedPrisma = new PrismaClient();
+  }
+  prisma = global.cachedPrisma;
+}
 
-export default prisma;
+export const db = prisma;
